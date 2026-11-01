@@ -1,12 +1,12 @@
 from fastapi import FastAPI, Depends
-from typing import Annotated
+from typing import Annotated, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from lifespan import lifespan
 import models, schemas
 
 from dependencies import get_db_session
 
-from services import add_item, update_item
+from services import add_item, update_item, get_item, delete_item, get_items_by_filters
 
 
 app = FastAPI(
@@ -33,9 +33,20 @@ async def get_ad(
         ad_id: int,
         session: SessionDep
 ):
-    ad = await get_ad(session, models.Advertisement, ad_id)
-    return schemas.GetAd(**ad.ad_dict())
+    ad = await get_item(session, models.Advertisement, ad_id)
+    return schemas.GetAd(**ad.ad_dict)
 
+@app.get('/advertisement', response_model=List[schemas.GetAd], summary='Поиск объявлений')
+async def search_ads(
+    session: SessionDep,
+    filters: schemas.AdFilter = Depends()
+):
+    ads = await get_items_by_filters(
+        session=session,
+        model=models.Advertisement,
+        filters=filters,
+    )
+    return [schemas.GetAd(**ad.ad_dict) for ad in ads]
 
 @app.patch('/advertisement/{ad_id}', response_model=schemas.UpdateAdResponse, summary='Обновить объявление по ID')
 async def update_ad(
@@ -44,7 +55,7 @@ async def update_ad(
         session: SessionDep
 ):
     updated_ad = await update_item(session, models.Advertisement, ad_id, update_data)
-    return schemas.UpdateAdResponse(**updated_ad.ad_dict())
+    return schemas.UpdateAdResponse(**updated_ad.ad_dict)
 
 
 @app.delete('/advertisement/{ad_id}', response_model=schemas.DeleteAd, summary='Удалить объявление по ID')
@@ -52,5 +63,5 @@ async def delete_ad(
         ad_id: int,
         session: SessionDep
 ):
-    await delete_ad(session, models.Advertisement, ad_id)
+    await delete_item(session, models.Advertisement, ad_id)
     return schemas.DeleteAd

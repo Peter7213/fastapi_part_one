@@ -42,6 +42,28 @@ async def get_item(
         )
     return ad_item
 
+
+async def get_items_by_filters(
+        session: AsyncSession,
+        model,
+        filters: schemas.AdFilter
+):
+    query = select(model)
+    if filters.header:
+        query = query.where(model.header.ilike(f"%{filters.header}%"))
+    if filters.description:
+        query = query.where(model.description.ilike(f"%{filters.description}%"))
+    if filters.author:
+        query = query.where(model.author == filters.author)
+    result = await session.execute(query)
+    items = result.scalars().all()
+    if not items:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f'Объявлений с этими данными не найдено'
+        )
+    return items
+
 async def update_item(
         session: AsyncSession,
         orm_model: type[models.Advertisement],
